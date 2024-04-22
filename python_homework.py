@@ -12,27 +12,29 @@
 # человека)
 # 4. Использование функций. Ваша программа
 # не должна быть линейной
-def save_contacts_to_file(contacts, filename):
-    with open(filename, 'w') as file:
-        for contact in contacts:
-            file.write(','.join([contact['Фамилия'], contact['Имя'], contact['Отчество'], contact['Телефон']]) + '\n')
+import csv
 
-def load_contacts_from_file(filename):
+def load_contacts_from_csv(filename):
     contacts = []
-    with open(filename, 'r', encoding='utf-8') as file:
-        for line in file:
-            contact_data = line.strip().split(',')
-            contact = {'Фамилия': contact_data[0], 'Имя': contact_data[1], 'Отчество': contact_data[2], 'Телефон': contact_data[3]}
-            contacts.append(contact)
+    with open(filename, 'r', newline='', encoding='utf-8') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if len(row) >= 4:  # Проверяем, есть ли в строке хотя бы 4 столбца
+                contact = {'Фамилия': row[0], 'Имя': row[1], 'Отчество': row[2], 'Телефон': row[3]}
+                contacts.append(contact)
     return contacts
 
-def save_contacts_to_file(contacts, filename):
-    with open(filename, 'w', encoding='utf-8') as file:
+def save_contacts_to_csv(contacts, filename):
+    with open(filename, 'w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
         for contact in contacts:
-            file.write(','.join([contact['Фамилия'], contact['Имя'], contact['Отчество'], contact['Телефон']]) + '\n')
+            writer.writerow([contact['Фамилия'], contact['Имя'], contact['Отчество'], contact['Телефон']])
+    print("Контакты успешно сохранены в файл:", filename)
+
 def display_contacts(contacts):
-    for contact in contacts:
-        print(', '.join([contact['Фамилия'], contact['Имя'], contact['Отчество'], contact['Телефон']]))
+    print("{:<5} {:<15} {:<15} {:<15} {:<15}".format('№', 'Фамилия', 'Имя', 'Отчество', 'Телефон'))
+    for i, contact in enumerate(contacts, 1):
+        print("{:<5} {:<15} {:<15} {:<15} {:<15}".format(i, contact['Фамилия'], contact['Имя'], contact['Отчество'], contact['Телефон']))
 
 def add_contact(contacts):
     Фамилия = input("Введите фамилию: ")
@@ -40,8 +42,11 @@ def add_contact(contacts):
     Отчество = input("Введите отчество: ")
     Телефон = input("Введите номер телефона: ")
     новый_контакт = {'Фамилия': Фамилия, 'Имя': Имя, 'Отчество': Отчество, 'Телефон': Телефон}
-    contacts.append(новый_контакт)
-    print("Контакт успешно добавлен.")
+    if новый_контакт not in contacts:
+        contacts.append(новый_контакт)
+        print("Контакт успешно добавлен.")
+    else:
+        print("Такой контакт уже существует.")
 
 def update_contact(contacts):
     Фамилия = input("Введите фамилию контакта, который нужно изменить: ")
@@ -59,112 +64,95 @@ def update_contact(contacts):
 def delete_contact(contacts):
     Фамилия = input("Введите фамилию контакта, который нужно удалить: ")
     Имя = input("Введите имя контакта, который нужно удалить: ")
-    for contact in contacts:
+    удален = False
+    for contact in contacts[:]:
         if contact['Фамилия'] == Фамилия and contact['Имя'] == Имя:
             contacts.remove(contact)
-            print("Контакт успешно удален.")
-            return
-    print("Контакт не найден.")
+            удален = True
+    if удален:
+        print("Контакт успешно удален.")
+    else:
+        print("Контакт не найден.")
 
 def search_contacts(contacts):
     характеристика = input("Введите характеристику для поиска (Фамилия, Имя, Отчество или Телефон): ").capitalize()
     значение = input(f"Введите {характеристика}: ")
     found = False
-    for contact in contacts:
+    for i, contact in enumerate(contacts, 1):
         if значение in contact[характеристика]:
-            print(', '.join([contact['Фамилия'], contact['Имя'], contact['Отчество'], contact['Телефон']]))
+            print("{:<5} {:<15} {:<15} {:<15} {:<15}".format(i, contact['Фамилия'], contact['Имя'], contact['Отчество'], contact['Телефон']))
             found = True
     if not found:
         print("Контакт не найден.")
 
+def copy_contact_to_file(contacts):
+    contact_numbers = input("Введите номера контактов для копирования (через запятую): ")
+    contact_numbers = [int(num.strip()) for num in contact_numbers.split(",") if num.strip().isdigit()]
+    if not contact_numbers:
+        print("Некорректный ввод. Введите номера контактов через запятую.")
+        return
+    target_file = input("Введите имя файла для копирования контактов: ")
+    selected_contacts = [contacts[num - 1] for num in contact_numbers if 0 < num <= len(contacts)]
+    existing_contacts = load_contacts_from_csv(target_file)
+    existing_contacts.extend(selected_contacts)
+    save_contacts_to_csv(existing_contacts, target_file)
+    print("Контакты успешно скопированы в файл:", target_file)
+
+def copy_contact_from_file(contacts):
+    source_file = input("Введите имя файла, из которого нужно скопировать контакты: ")
+    new_contacts = load_contacts_from_csv(source_file)
+    print("Контакты в файле для копирования:")
+    display_contacts(new_contacts)
+    contact_numbers = input("Введите номера контактов для копирования (через запятую): ")
+    contact_numbers = [int(num.strip()) for num in contact_numbers.split(",") if num.strip().isdigit()]
+    selected_contacts = [new_contacts[num - 1] for num in contact_numbers if 0 < num <= len(new_contacts)]
+    contacts.extend(selected_contacts)
+    print("Контакты успешно скопированы.")
+
+def save_and_exit(contacts, filename):
+    save_contacts_to_csv(contacts, filename)
+    print("Данные сохранены в файл. Программа завершена.")
+    exit()
+
 def main():
-    filename = 'contacts.txt'
-    try:
-        contacts = load_contacts_from_file(filename)
-    except FileNotFoundError:
-        print("Файл с контактами не найден. Создается новый файл.")
-        contacts = []
+    contacts = load_contacts_from_csv("contacts.csv")
 
     while True:
         print("\nМеню:")
-        print("1. Просмотреть контакты")
-        print("2. Добавить контакт")
+        print("1. Просмотреть все контакты")
+        print("2. Добавить новый контакт")
         print("3. Изменить контакт")
         print("4. Удалить контакт")
-        print("5. Поиск контакта")
-        print("6. Сохранить и выйти")
-        print("7. Выйти без сохранения")
+        print("5. Найти контакт")
+        print("6. Копировать контакт в другой файл")
+        print("7. Копировать контакт из другого файла")
+        print("8. Сохранить и выйти")
+        print("9. Выйти без сохранения")
+
         choice = input("Выберите действие: ")
 
-        if choice == '1':
-            print("\nКонтакты:")
+        if choice == "1":
             display_contacts(contacts)
-        elif choice == '2':
+        elif choice == "2":
             add_contact(contacts)
-        elif choice == '3':
+        elif choice == "3":
             update_contact(contacts)
-        elif choice == '4':
+        elif choice == "4":
             delete_contact(contacts)
-        elif choice == '5':
+        elif choice == "5":
             search_contacts(contacts)
-        elif choice == '6':
-            save_contacts_to_file(contacts, filename)
-            print("Данные сохранены в файл.")
+        elif choice == "6":
+            copy_contact_to_file(contacts)
+        elif choice == "7":
+            copy_contact_from_file(contacts)
+        elif choice == "8":
+            save_and_exit(contacts, "contacts.csv")
             break
-        elif choice == '7':
-            print("Выход без сохранения.")
+        elif choice == "9":
             break
         else:
-            print("Некорректный ввод. Пожалуйста, выберите действие из списка.")
+            print("Некорректный ввод. Пожалуйста, выберите действие из меню.")
+
 if __name__ == "__main__":
     main()
-    
-# логика программы:
-
-# Загрузка контактов из файла:
-
-# При запуске программы она пытается загрузить контакты из файла contacts.txt.
-# Если файл существует, он читается, и каждая строка файла интерпретируется как контакт. 
-# Каждая строка разделяется на части по запятой (,), и эти части используются для создания словаря контакта,
-# который затем добавляется в список контактов.
-# Если файл не существует или происходит ошибка при чтении, создается пустой список контактов.
-
-# Главное меню:
-# После загрузки контактов программа выводит главное меню, где пользователь может выбрать одно из действий.
-# Возможные действия включают просмотр, добавление, изменение, удаление, поиск контактов, сохранение и выход.
-
-# Просмотр контактов:
-# При выборе этой опции программа выводит все контакты, которые были загружены из файла.
-# Добавление контакта:
-# Пользователь может добавить новый контакт, вводя информацию о фамилии, имени, отчестве и номере телефона.
-# Новый контакт добавляется в список контактов.
-
-# Изменение контакта:
-# Пользователь может изменить существующий контакт, выбрав его по фамилии, имени или отчеству.
-# Пользователю предлагается ввести новую информацию о контакте (фамилия, имя, отчество, номер телефона).
-# Выбранный контакт обновляется в списке контактов.
-
-# Удаление контакта:
-# Пользователь может удалить существующий контакт, выбрав его по фамилии, имени или отчеству.
-# Выбранный контакт удаляется из списка контактов.
-
-# Поиск контактов:
-# Пользователь может найти контакт, введя часть фамилии, имени, отчества или номера телефона.
-# Если найдены контакты с соответствующей информацией, они выводятся на экран.
-
-# Сохранение и выход:
-# При выборе этой опции все контакты сохраняются в файл contacts.txt, затем программа завершается.
-# Контакты сохраняются в формате строки, где каждый контакт представлен как четыре значения, разделенные запятой (,):
-# фамилия, имя, отчество, номер телефона.
-
-# Выйти без сохранения:
-# При выборе этой опции программа завершается без сохранения изменений.
-
-# Таким образом, программа обеспечивает управление списком контактов с помощью наглядного интерфейса меню,
-# а также предоставляет функции для добавления, изменения, удаления и поиска контактов, а также сохранения и загрузки контактов из файла.
-
-
-
-
-
 
